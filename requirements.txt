@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlite3
+numpy
+scikit-learn
+torch
+sentence-transformers
+networkx
+matplotlib
+pyvis
+pydantic
