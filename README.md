@@ -1,167 +1,133 @@
-🧠 The RobustRecommender Engine: A Comprehensive Guide
+# AI Research Paper Recommender System
+
+A high-performance, hybrid recommender system for AI research papers, powered by FastAPI. This system provides intelligent paper recommendations using a combination of semantic search, collaborative filtering, and graph-based algorithms.
 
-1. Introduction
+## Features
 
-Welcome to the documentation for the RobustRecommender. This system is the "brain" behind a research paper discovery platform. It helps users find relevant papers not just by matching keywords, but by understanding human behavior and semantic meaning.
+- **Semantic Search**: Find relevant papers using natural language queries
+- **Smart Recommendations**: Get personalized paper recommendations based on user interactions
+- **Trending Papers**: Discover popular and trending AI research papers
+- **Similar Papers**: Find papers similar to a given paper
+- **Interaction Tracking**: Track user interactions to improve recommendations
+- **RESTful API**: Fully documented OpenAPI/Swagger interface
 
-What kind of Recommender is this?
+## API Endpoints
 
-It is a Hybrid System. It combines two powerful techniques:
+### Search & Recommendations
 
-Content-Based Filtering (The "Librarian"): It reads the text (Title + Summary) to understand what a paper is about.
+#### `GET /api/papers/search`
+- **Description**: Search for AI research papers with semantic search and hybrid ranking
+- **Query Parameters**:
+  - `q`: Search query (optional, returns trending papers if empty)
+  - `limit`: Number of results to return (default: 10, max: 20)
+- **Response**: List of relevant papers with metadata and relevance scores
 
-Collaborative Filtering (The "Social Network"): It watches what users click to understand which papers are related, even if they don't sound alike.
+#### `GET /api/papers/similar/{paper_id}`
+- **Description**: Get papers similar to a specific paper
+- **Path Parameters**:
+  - `paper_id`: ID of the target paper
+- **Query Parameters**:
+  - `limit`: Number of similar papers to return (default: 5, max: 10)
+- **Response**: List of similar papers with similarity scores
 
-2. The Core Architecture
+#### `GET /api/papers/trending`
+- **Description**: Get currently trending papers based on recent interactions
+- **Query Parameters**:
+  - `limit`: Number of trending papers to return (default: 5, max: 20)
+- **Response**: List of trending papers with popularity metrics
 
-The system is built on three pillars:
+### Tracking
 
-Component
+#### `POST /api/tracking/clicks`
+- **Description**: Record user interactions with papers
+- **Request Body**:
+  ```json
+  {
+    "paper_id": "string",
+    "user_id": "string",
+    "interaction_type": "view|click|download",
+    "timestamp": "2025-11-22T17:30:00Z"
+  }
+  ```
+- **Response**: Confirmation of recorded interaction
 
-Technology
+### Health Check
 
-Analogy
+#### `GET /health`
+- **Description**: Check if the service is running
+- **Response**: Service status and version information
 
-The Semantic Engine
+## Setup and Installation
 
-FAISS (Facebook AI Similarity Search)
+### Prerequisites
 
-A super-fast librarian who knows exactly where every book is located on an infinite shelf.
+- Python 3.8+
+- pip (Python package manager)
 
-The Behavior Graph
+### Installation
 
-NetworkX (Graph Database)
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd recommender_system
+   ```
 
-A spiderweb connecting papers together. If you walk from paper A to B, the web gets stronger.
+2. Create and activate a virtual environment (recommended):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+   ```
 
-The Neural Brain
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Sentence Transformers (BERT)
+## Running the Application
 
-A translator that converts English text into numbers (Vectors) the computer can understand.
+### Development Mode
 
-3. Key Concepts Explained
+```bash
+uvicorn main:app --reload
+```
 
-A. Embeddings & Vectors
+### Production Mode
 
-Computers can't read English. To them, "Dog" and "Puppy" are totally different words.
-To fix this, we use Embeddings. We turn every paper into a list of 384 numbers (a Vector).
+For production, use a production ASGI server like uvicorn with gunicorn:
 
-Concept: Imagine a 3D map. "Dog" and "Puppy" have coordinates very close to each other. "Cat" is nearby. "Car" is far away.
+```bash
+pip install gunicorn
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
+```
 
-Our Code: We use all-MiniLM-L6-v2 to turn text into these coordinates.
+## API Documentation
 
-B. The Graph (Nodes & Edges)
+Once the application is running, you can access the following:
 
-Node: A single research paper.
+- **Interactive API Docs (Swagger UI)**: http://localhost:8000/docs
+- **Alternative API Docs (ReDoc)**: http://localhost:8000/redoc
+- **OpenAPI Schema**: http://localhost:8000/openapi.json
 
-Edge: A line connecting two papers.
+## Environment Variables
 
-Weight: How thick the line is. If 100 people click from Paper A to Paper B, the line becomes a thick highway. If only 1 person does it, it's a dirt path.
+The application can be configured using the following environment variables:
 
-C. "Time-Gravity" (The Decay Logic)
+- `DATABASE_URL`: Database connection string (default: SQLite database)
+- `MODEL_NAME`: Name of the sentence transformer model (default: 'all-MiniLM-L6-v2')
+- `DEBUG`: Enable debug mode (default: False)
 
-We don't want a paper that was popular in 2010 to stay #1 forever if nobody reads it anymore.
+## Contributing
 
-The Solution: We use Gravity.
+1. Fork the repository
+2. Create a new branch for your feature
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
 
-The Math: Every time we look at a connection, we ask: "When was this last clicked?"
+## License
 
-Result: If a link is old, its strength is divided by a "Gravity" factor. It naturally fades away unless people keep clicking it to keep it fresh.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-4. How It Works: The Four Main Functions
+## Support
 
-① Initialization (__init__)
-
-What it does: Wakes up the brain.
-
-Loads the Neural Network model.
-
-Reads all papers from the database.
-
-FAISS Indexing: It calculates vectors for all papers and puts them into a high-speed index (like a card catalog).
-
-Graph Loading: It loads the history of user clicks from the hard drive (.pkl file).
-
-② Search (search)
-
-The Problem: If I search "Music", a keyword search misses "Orchestral Arrangement". If I only use the Graph, I can't find new papers nobody has clicked yet.
-The Solution: The "Merge Strategy".
-
-Source A (Semantic): FAISS scans millions of vectors to find the Top 50 papers that mathematically mean "Music".
-
-Source B (Behavioral): The Graph looks at the paper you are currently reading and grabs its Top 20 strongest connections (what other users clicked).
-
-The Merge: We mix these two lists together.
-
-The "Rescue" Boost: If a paper came from the Graph (Source B), we give it a bonus score.
-
-Example: A "Programming" paper might not look like a match for "Music", but if 500 users clicked it, the Graph Boost saves it and shows it to you.
-
-③ Similar Items (get_similar_items)
-
-The Problem: We want to suggest the "Next Best Paper" to read.
-The Solution: Beam Search (The Global Frontier).
-
-Imagine a flashlight beam widening as it searches.
-
-The Frontier: We put all immediate neighbors of the current paper into a "Pool".
-
-The Priority Check: We score everyone in the Pool using: (Weight + Popularity) * Semantic_Match.
-
-The 70/30 Rule:
-
-70% of the time: We pick the absolute best paper (Deterministic).
-
-30% of the time: We pick a random paper from the Top 5 (Exploratory). This helps us discover hidden gems.
-
-Expand: Once we pick a paper, we add its neighbors to the Pool, but we penalize them (multiply by 0.6) because they are further away.
-
-④ Learning (process_user_click)
-
-The Problem: How does the system get smarter?
-The Solution: Lazy Updates.
-
-When you click a link:
-
-Immediate Update: We instantly increase the hits (Popularity) of the paper.
-
-Atomic Write: We verify the connection between the previous paper and the new paper.
-
-If the link exists, we make it stronger (+0.5 points).
-
-We stamp it with the current time (last_updated).
-
-Why "Lazy"? We do not re-calculate the decay for the whole graph. That would freeze the server. We only calculate decay when we read the data later.
-
-5. Scalability: Why it doesn't crash
-
-Feature
-
-Why it matters
-
-FAISS Integration
-
-Standard search is slow ($O(N)$). FAISS is instant ($O(\log N)$). We can search 1 million papers in milliseconds.
-
-Thread Locks
-
-Python tries to run multiple things at once. Our self._lock ensures two users don't try to write to the graph at the exact same nanosecond, preventing corruption.
-
-Lazy Decay
-
-We replaced a loop that ran 10,000 times per click with a simple math formula that runs 0 times per click.
-
-Heap Selection
-
-For "Trending" papers, we use a Heap algorithm ($O(N \log K)$) instead of sorting everything ($O(N \log N)$). It's much faster.
-
-6. Summary for the Developer
-
-Input: List of papers (dictionaries).
-
-Storage: Local .pkl file (Graph) + FAISS index (RAM).
-
-Main Output: JSON lists of recommended papers with scores.
-
-Maintenance: None required. The system cleans itself up mathematically using Time-Gravity.
+For support, please open an issue in the GitHub repository or contact the maintainers.
