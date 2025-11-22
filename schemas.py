@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 # --- Pydantic Models (Data Validation) ---
 class RecipeModel(BaseModel):
@@ -8,5 +9,6 @@ class RecipeModel(BaseModel):
     popularity: int = 0
 
 class ClickRequest(BaseModel):
-    query: str
-    clicked_item_name: str
+    """Request model for tracking paper interactions"""
+    paper_id: str
+    query: Optional[str] = None

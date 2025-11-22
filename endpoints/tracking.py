@@ -1,17 +1,15 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status, Depends
 import database
+from dependencies.recommender import get_recommender
+from recommender_engine import RobustRecommender
 from schemas import ClickRequest
-
-router = APIRouter(prefix="/track", tags=["Tracking"])
-
-def get_recommender(request: Request):
-    return request.state.recommender_system
-
+router = APIRouter(prefix="/api/tracking", tags=["Tracking"])
 @router.post(
-    "/click",
-    summary="Track user click/interaction",
+    "/clicks",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Track paper view/click",
     description="""
-    Record a user interaction (click) and update the recommendation model.
+    Record a user interaction with a research paper and update the recommendation model.
     
     This endpoint processes user interactions to improve future recommendations.
     It performs the following operations in a thread-safe manner:
@@ -26,27 +24,31 @@ def get_recommender(request: Request):
     updating the recommendation graph, preventing race conditions from concurrent updates.
     """,
     responses={
-        200: {
+        202: {
             "description": "Click successfully recorded",
             "content": {
                 "application/json": {
                     "example": {
-                        "status": "recorded",
-                        "message": "Feedback received for 'Chocolate Chip Cookies'",
+                        "status": "accepted",
+                        "paper_id": "12345",
+                        "message": "Interaction recorded",
                         "details": "Graph update in progress"
                     }
                 }
             }
         },
         400: {"description": "Invalid request payload"},
-        500: {"description": "Internal server error while processing click"},
+        404: {"description": "Paper not found"},
+        500: {"description": "Internal server error while processing interaction"},
         503: {"description": "Service Unavailable - System is initializing"}
     }
 )
-async def track_click(
+async def track_paper_interaction(
+    request: Request,
     payload: ClickRequest,
     background_tasks: BackgroundTasks,
-    request: Request
+    recommender_system: RobustRecommender = Depends(get_recommender)
+
 ):
     """
     Handle user click tracking in a thread-safe manner.
@@ -54,42 +56,33 @@ async def track_click(
     This endpoint is designed to handle high concurrency while maintaining
     data consistency in the recommendation graph.
     """
-    recommender_system = request.app.state.recommender_system
-    if not recommender_system:
-        raise HTTPException(status_code=503, detail="System initializing")
-
     try:
         # 1. Update Persistent DB (atomic operation)
-        database.increment_popularity(payload.clicked_item_name)
+        database.increment_popularity(int(payload.paper_id))
         
-        # 2. Update In-Memory Graph Logic with thread safety
+        # This is the critical section that needs thread safety
         recommender_system.process_user_click(
-            payload.query, 
-            payload.clicked_item_name
+            query=payload.query or "",
+            clicked_item=payload.paper_id
         )
         
-        # 3. Schedule Background Save (thread-safe)
-        def save_graph():
-            try:
-                recommender_system.save_to_disk()
-                print(" Graph state saved to pickle.")
-            except Exception as e:
-                # Log the error but don't fail the request
-                print(f"Error saving graph to disk: {str(e)}")
-        
-        # Add the background task to save the graph
-        background_tasks.add_task(save_graph)
+        # 3. Schedule background save (non-blocking)
+        background_tasks.add_task(recommender_system.save_to_disk)
         
         return {
-            "status": "recorded", 
-            "message": f"Feedback received for '{payload.clicked_item_name}'",
+            "status": "accepted",
+            "paper_id": payload.paper_id,
+            "message": "Interaction recorded",
             "details": "Graph update in progress"
         }
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404)
+        raise
     except Exception as e:
-        # Log the full error for debugging
-        print(f"Error in track_click: {str(e)}")
+        # Log the error but don't expose internal details to the client
+        print(f"Error processing interaction: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process click: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing your request"
         )

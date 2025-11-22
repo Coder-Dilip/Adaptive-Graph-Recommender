@@ -1,125 +1,167 @@
-# FoodAI Recipe Recommender
+🧠 The RobustRecommender Engine: A Comprehensive Guide
 
-A FastAPI-based recommendation system for discovering and exploring recipes. The system uses semantic search and popularity-based ranking to provide personalized recipe recommendations.
+1. Introduction
 
-## 🚀 Features
+Welcome to the documentation for the RobustRecommender. This system is the "brain" behind a research paper discovery platform. It helps users find relevant papers not just by matching keywords, but by understanding human behavior and semantic meaning.
 
-- **Semantic Search**: Find recipes using natural language queries
-- **Personalized Recommendations**: Get similar recipe suggestions
-- **Trending Recipes**: Discover what's popular right now
-- **RESTful API**: Easy integration with any frontend
-- **Interactive Documentation**: Try out the API directly from your browser
+What kind of Recommender is this?
 
-## 🛠️ Prerequisites
+It is a Hybrid System. It combines two powerful techniques:
 
-- Python 3.8+
-- pip (Python package manager)
+Content-Based Filtering (The "Librarian"): It reads the text (Title + Summary) to understand what a paper is about.
 
-## 🚀 Getting Started
+Collaborative Filtering (The "Social Network"): It watches what users click to understand which papers are related, even if they don't sound alike.
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repository-url>
-   cd recommender_system
-   ```
+2. The Core Architecture
 
-2. **Create and activate a virtual environment**
-   ```bash
-   # Windows
-   python -m venv venv
-   .\venv\Scripts\activate
-   
-   # macOS/Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+The system is built on three pillars:
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+Component
 
-4. **Initialize the database**
-   The database will be automatically initialized when you first run the application.
+Technology
 
-5. **Run the application**
-   ```bash
-   uvicorn main:app --reload
-   ```
+Analogy
 
-6. **Access the API documentation**
-   - Interactive API docs: http://localhost:8000/docs
-   - Alternative API docs: http://localhost:8000/redoc
+The Semantic Engine
 
-## 🌐 API Endpoints
+FAISS (Facebook AI Similarity Search)
 
-### 🔍 Search Recipes
-- **GET** `/search/` - Search for recipes using natural language
-  - Query Parameters:
-    - `q`: Search query (e.g., "vegetarian pasta")
+A super-fast librarian who knows exactly where every book is located on an infinite shelf.
 
-### 🔄 Get Similar Recipes
-- **GET** `/search/recommend/{item_name}` - Get recipes similar to the specified item
-  - Path Parameters:
-    - `item_name`: Name of the recipe to find similar items for
+The Behavior Graph
 
-### 📈 Get Trending Recipes
-- **GET** `/search/trending` - Get currently trending recipes
-  - Query Parameters:
-    - `limit`: Number of trending items to return (default: 5)
+NetworkX (Graph Database)
 
-### 🩺 Health Check
-- **GET** `/health` - Check if the API is running
+A spiderweb connecting papers together. If you walk from paper A to B, the web gets stronger.
 
-## 🧪 Example API Requests
+The Neural Brain
 
-### Search for recipes
-```bash
-curl -X 'GET' \
-  'http://localhost:8000/search/?q=vegetarian' \
-  -H 'accept: application/json'
-```
+Sentence Transformers (BERT)
 
-### Get similar recipes
-```bash
-curl -X 'GET' \
-  'http://localhost:8000/search/recommend/Veg%20Burger' \
-  -H 'accept: application/json'
-```
+A translator that converts English text into numbers (Vectors) the computer can understand.
 
-### Get trending recipes
-```bash
-curl -X 'GET' \
-  'http://localhost:8000/search/trending?limit=3' \
-  -H 'accept: application/json'
-```
+3. Key Concepts Explained
 
-## 🏗️ Project Structure
+A. Embeddings & Vectors
 
-```
-recommender_system/
-├── .gitignore
-├── README.md
-├── requirements.txt
-├── main.py              # FastAPI application entry point
-├── database.py          # Database initialization and operations
-├── recommender_engine.py # Recommendation logic
-├── recipes.db           # SQLite database (created on first run)
-└── endpoints/           # API endpoint definitions
-    ├── __init__.py
-    ├── health.py        # Health check endpoint
-    ├── search.py        # Search and recommendation endpoints
-    └── tracking.py      # User interaction tracking
-```
+Computers can't read English. To them, "Dog" and "Puppy" are totally different words.
+To fix this, we use Embeddings. We turn every paper into a list of 384 numbers (a Vector).
 
-## 🤝 Contributing
+Concept: Imagine a 3D map. "Dog" and "Puppy" have coordinates very close to each other. "Cat" is nearby. "Car" is far away.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Our Code: We use all-MiniLM-L6-v2 to turn text into these coordinates.
 
-## 📄 License
+B. The Graph (Nodes & Edges)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Node: A single research paper.
 
-## 📧 Contact
+Edge: A line connecting two papers.
 
-For any questions or feedback, please open an issue in the repository.
+Weight: How thick the line is. If 100 people click from Paper A to Paper B, the line becomes a thick highway. If only 1 person does it, it's a dirt path.
+
+C. "Time-Gravity" (The Decay Logic)
+
+We don't want a paper that was popular in 2010 to stay #1 forever if nobody reads it anymore.
+
+The Solution: We use Gravity.
+
+The Math: Every time we look at a connection, we ask: "When was this last clicked?"
+
+Result: If a link is old, its strength is divided by a "Gravity" factor. It naturally fades away unless people keep clicking it to keep it fresh.
+
+4. How It Works: The Four Main Functions
+
+① Initialization (__init__)
+
+What it does: Wakes up the brain.
+
+Loads the Neural Network model.
+
+Reads all papers from the database.
+
+FAISS Indexing: It calculates vectors for all papers and puts them into a high-speed index (like a card catalog).
+
+Graph Loading: It loads the history of user clicks from the hard drive (.pkl file).
+
+② Search (search)
+
+The Problem: If I search "Music", a keyword search misses "Orchestral Arrangement". If I only use the Graph, I can't find new papers nobody has clicked yet.
+The Solution: The "Merge Strategy".
+
+Source A (Semantic): FAISS scans millions of vectors to find the Top 50 papers that mathematically mean "Music".
+
+Source B (Behavioral): The Graph looks at the paper you are currently reading and grabs its Top 20 strongest connections (what other users clicked).
+
+The Merge: We mix these two lists together.
+
+The "Rescue" Boost: If a paper came from the Graph (Source B), we give it a bonus score.
+
+Example: A "Programming" paper might not look like a match for "Music", but if 500 users clicked it, the Graph Boost saves it and shows it to you.
+
+③ Similar Items (get_similar_items)
+
+The Problem: We want to suggest the "Next Best Paper" to read.
+The Solution: Beam Search (The Global Frontier).
+
+Imagine a flashlight beam widening as it searches.
+
+The Frontier: We put all immediate neighbors of the current paper into a "Pool".
+
+The Priority Check: We score everyone in the Pool using: (Weight + Popularity) * Semantic_Match.
+
+The 70/30 Rule:
+
+70% of the time: We pick the absolute best paper (Deterministic).
+
+30% of the time: We pick a random paper from the Top 5 (Exploratory). This helps us discover hidden gems.
+
+Expand: Once we pick a paper, we add its neighbors to the Pool, but we penalize them (multiply by 0.6) because they are further away.
+
+④ Learning (process_user_click)
+
+The Problem: How does the system get smarter?
+The Solution: Lazy Updates.
+
+When you click a link:
+
+Immediate Update: We instantly increase the hits (Popularity) of the paper.
+
+Atomic Write: We verify the connection between the previous paper and the new paper.
+
+If the link exists, we make it stronger (+0.5 points).
+
+We stamp it with the current time (last_updated).
+
+Why "Lazy"? We do not re-calculate the decay for the whole graph. That would freeze the server. We only calculate decay when we read the data later.
+
+5. Scalability: Why it doesn't crash
+
+Feature
+
+Why it matters
+
+FAISS Integration
+
+Standard search is slow ($O(N)$). FAISS is instant ($O(\log N)$). We can search 1 million papers in milliseconds.
+
+Thread Locks
+
+Python tries to run multiple things at once. Our self._lock ensures two users don't try to write to the graph at the exact same nanosecond, preventing corruption.
+
+Lazy Decay
+
+We replaced a loop that ran 10,000 times per click with a simple math formula that runs 0 times per click.
+
+Heap Selection
+
+For "Trending" papers, we use a Heap algorithm ($O(N \log K)$) instead of sorting everything ($O(N \log N)$). It's much faster.
+
+6. Summary for the Developer
+
+Input: List of papers (dictionaries).
+
+Storage: Local .pkl file (Graph) + FAISS index (RAM).
+
+Main Output: JSON lists of recommended papers with scores.
+
+Maintenance: None required. The system cleans itself up mathematically using Time-Gravity.
