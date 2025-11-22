@@ -1,211 +1,127 @@
-🧠 The RobustRecommender Engine: A 
-Comprehensive Guide 
+# 🧠 The RobustRecommender Engine: A Comprehensive Guide
 
-1. Introduction 
+## 1. Introduction
 
-Welcome to the documentation for the RobustRecommender. This system is the "brain" 
-behind a research paper discovery platform. It helps users find relevant papers not just by 
-matching keywords, but by understanding human behavior and semantic meaning. 
+Welcome to the documentation for the RobustRecommender. This system is the "brain"
+behind a research paper discovery platform. It helps users find relevant papers not just by
+matching keywords, but by understanding human behavior and semantic meaning.
 
-What kind of Recommender is this? 
+### What kind of Recommender is this?
 
-It is a Hybrid System. It combines two powerful techniques: 
+It is a **Hybrid System**. It combines two powerful techniques:
 
-1.  Content-Based Filtering (The "Librarian"): It reads the text (Title + Summary) to 
+1. **Content-Based Filtering (The "Librarian")**: It reads the text (Title + Summary) to  
+   understand what a paper is about.
 
-understand what a paper is about. 
+2. **Collaborative Filtering (The "Social Network")**: It watches what users click to  
+   understand which papers are related, even if they don't sound alike.
 
-2.  Collaborative Filtering (The "Social Network"): It watches what users click to 
+---
 
-understand which papers are related, even if they don't sound alike. 
+## 2. The Core Architecture
 
-2. The Core Architecture 
+The system is built on three pillars:
 
-The system is built on three pillars: 
+| Component            | Technology                                | Analogy                                                                 |
+|----------------------|---------------------------------------------|-------------------------------------------------------------------------|
+| The Semantic Engine  | FAISS (Facebook AI Similarity Search)       | A super-fast librarian who knows exactly where every book is located.  |
+| The Behavior Graph   | NetworkX (Graph Database)                   | A spiderweb connecting papers together.                                 |
+| The Neural Brain     | Sentence Transformers (BERT)                | A translator turning English text into numeric vectors.                 |
 
-Component 
+---
 
-Technology 
+## 3. Key Concepts Explained
 
-Analogy 
+### A. Embeddings & Vectors
 
-The Semantic Engine 
+Computers can't read English. To them, *"Dog"* and *"Puppy"* are different words.  
+To fix this, we use **Embeddings** — turning each paper into a vector of 384 numbers.
 
-FAISS (Facebook AI 
-Similarity Search) 
+- **Concept:** Imagine a 3D map. "Dog" and "Puppy" are close. "Cat" is nearby. "Car" is far.  
+- **Our Code:** We use **all-MiniLM-L6-v2** to generate vectors.
 
-The Behavior Graph 
+### B. The Graph (Nodes & Edges)
 
-NetworkX (Graph 
-Database) 
+- **Node:** A single research paper  
+- **Edge:** A connection between two papers  
+- **Weight:** How strong the link is (e.g., 100 clicks = thick highway)
 
-The Neural Brain 
+### C. "Time-Gravity" (The Decay Logic)
 
-Sentence Transformers 
-(BERT) 
+We don’t let old papers dominate forever.
 
-A super-fast librarian who 
-knows exactly where every 
-book is located on an 
-infinite shelf. 
+- We check when each link was last clicked.
+- Old edges decay unless refreshed by user clicks.
 
-A spiderweb connecting 
-papers together. If you walk 
-from paper A to B, the web 
-gets stronger. 
+---
 
-A translator that converts 
-English text into numbers 
-(Vectors) the computer can 
-understand. 
+## 4. How It Works: The Four Main Functions
 
-3. Key Concepts Explained 
+### ① Initialization (`__init__`)
 
- 
-A. Embeddings & Vectors 
+What it does: **Wakes up the brain**.
 
-Computers can't read English. To them, "Dog" and "Puppy" are totally different words. To fix 
-this, we use Embeddings. We turn every paper into a list of 384 numbers (a Vector). 
+1. Loads the neural model  
+2. Reads all papers from the DB  
+3. Builds FAISS index  
+4. Loads graph from disk (.pkl)
 
-●  Concept: Imagine a 3D map. "Dog" and "Puppy" have coordinates very close to each 
+---
 
-other. "Cat" is nearby. "Car" is far away. 
+### ② Search (`search`)
 
-●  Our Code: We use all-MiniLM-L6-v2 to turn text into these coordinates. 
+The problem: A keyword search may miss semantic matches.  
+A graph-only search misses new papers.
 
-B. The Graph (Nodes & Edges) 
+**Solution: Merge Strategy**
 
-●  Node: A single research paper. 
-●  Edge: A line connecting two papers. 
-●  Weight: How thick the line is. If 100 people click from Paper A to Paper B, the line 
+1. **Semantic Source (FAISS):** Finds Top-50 meaning-based papers  
+2. **Graph Source:** Picks Top-20 behaviorally related papers  
+3. **Merge:** Combine & rank  
+4. **Rescue Boost:** Graph items get a bonus score
 
-becomes a thick highway. If only 1 person does it, it's a dirt path. 
+---
 
-C. "Time-Gravity" (The Decay Logic) 
+### ③ Similar Items (`get_similar_items`)
 
-We don't want a paper that was popular in 2010 to stay #1 forever if nobody reads it anymore. 
+Goal: Suggest *Next Best Paper*.
 
-●  The Solution: We use Gravity. 
-●  The Math: Every time we look at a connection, we ask: "When was this last clicked?" 
-●  Result: If a link is old, its strength is divided by a "Gravity" factor. It naturally fades away 
+Method: **Beam Search**
 
-unless people keep clicking it to keep it fresh. 
+1. Create frontier pool of neighbors  
+2. Score = `(Weight + Popularity) * Semantic_Match`  
+3. **70/30 Rule:**  
+   - 70% deterministic  
+   - 30% random among Top 5  
+4. Expand pool with decay penalty (×0.6)
 
-4. How It Works: The Four Main Functions 
+---
 
-① Initialization (__init__) 
+### ④ Learning (`process_user_click`)
 
-What it does: Wakes up the brain. 
+When user clicks:
 
-1.  Loads the Neural Network model. 
-2.  Reads all papers from the database. 
-3.  FAISS Indexing: It calculates vectors for all papers and puts them into a high-speed 
+1. Increase paper popularity  
+2. Strengthen graph link (+0.5)  
+3. Update timestamp  
+4. Lazy decay (done later to avoid blocking)
 
-index (like a card catalog). 
+---
 
-4.  Graph Loading: It loads the history of user clicks from the hard drive (.pkl file). 
+## 5. Scalability: Why It Doesn’t Crash
 
-② Search (search) 
+| Feature           | Why It Matters |
+|-------------------|----------------|
+| **FAISS Integration** | Search becomes O(log N), enabling millions scale |
+| **Thread Locks** | Prevent graph corruption when many users click simultaneously |
+| **Lazy Decay** | Eliminates huge recomputation loops |
+| **Heap Selection** | Fast trending search using O(N log K) |
 
-The Problem: If I search "Music", a keyword search misses "Orchestral Arrangement". If I only 
-use the Graph, I can't find new papers nobody has clicked yet. The Solution: The "Merge 
-Strategy". 
+---
 
-1.  Source A (Semantic): FAISS scans millions of vectors to find the Top 50 papers that 
+## 6. Summary for the Developer
 
-mathematically mean "Music". 
-
-2.  Source B (Behavioral): The Graph looks at the paper you are currently reading and 
-
-grabs its Top 20 strongest connections (what other users clicked). 
-
-3.  The Merge: We mix these two lists together. 
-4.  The "Rescue" Boost: If a paper came from the Graph (Source B), we give it a bonus 
-
-score. 
-○  Example: A "Programming" paper might not look like a match for "Music", but if 500 
-
-users clicked it, the Graph Boost saves it and shows it to you. 
-
-③ Similar Items (get_similar_items) 
-
-The Problem: We want to suggest the "Next Best Paper" to read. The Solution: Beam 
-Search (The Global Frontier). 
-
-Imagine a flashlight beam widening as it searches. 
-
-1.  The Frontier: We put all immediate neighbors of the current paper into a "Pool". 
-2.  The Priority Check: We score everyone in the Pool using: (Weight + Popularity) * 
-
-Semantic_Match. 
-3.  The 70/30 Rule: 
-
-○  70% of the time: We pick the absolute best paper (Deterministic). 
-○  30% of the time: We pick a random paper from the Top 5 (Exploratory). This helps 
-
-us discover hidden gems. 
-
-4.  Expand: Once we pick a paper, we add its neighbors to the Pool, but we penalize them 
-
-(multiply by 0.6) because they are further away. 
-
-④ Learning (process_user_click) 
-
-The Problem: How does the system get smarter? The Solution: Lazy Updates. 
-
-When you click a link: 
-
-1.  Immediate Update: We instantly increase the hits (Popularity) of the paper. 
-2.  Atomic Write: We verify the connection between the previous paper and the new paper. 
-
-If the link exists, we make it stronger (+0.5 points). 
-
-○ 
-○  We stamp it with the current time (last_updated). 
-
-3.  Why "Lazy"? We do not re-calculate the decay for the whole graph. That would freeze 
-
-the server. We only calculate decay when we read the data later. 
-
-5. Scalability: Why it doesn't crash 
-
-Feature 
-
-Why it matters 
-
-FAISS Integration 
-
-Thread Locks 
-
-Standard search is slow ($O(N)$). FAISS is 
-instant ($O(\log N)$). We can search 1 
-million papers in milliseconds. 
-
-Python tries to run multiple things at once. 
-Our self._lock ensures two users don't try 
-to write to the graph at the exact same 
-nanosecond, preventing corruption. 
-
-Lazy Decay 
-
-Heap Selection 
-
-We replaced a loop that ran 10,000 times 
-per click with a simple math formula that 
-runs 0 times per click. 
-
-For "Trending" papers, we use a Heap 
-algorithm ($O(N \log K)$) instead of 
-sorting everything ($O(N \log N)$). It's 
-much faster. 
-
-6. Summary for the Developer 
-
-Input: List of papers (dictionaries). 
-
-● 
-●  Storage: Local .pkl file (Graph) + FAISS index (RAM). 
-●  Main Output: JSON lists of recommended papers with scores. 
-●  Maintenance: None required. The system cleans itself up mathematically using 
-
-Time-Gravity. 
+- **Input:** List of paper dictionaries  
+- **Storage:** `.pkl` graph + FAISS index  
+- **Output:** JSON recommendations  
+- **Maintenance:** None — Time-Gravity auto-cleans the system  
