@@ -11,3 +11,5 @@ pandas==2.2.3
 python-multipart==0.0.9
 python-dateutil==2.9.0.post0
 pydantic==2.12.4
+qdrant-client==1.16.0
+python-dotenv==1.2.1

@@ -1,36 +1,62 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 import database
 from endpoints import api_router
 from recommender_engine import RobustRecommender
 import uvicorn
 from fastapi.responses import JSONResponse
 
+# Load environment variables from .env file
+load_dotenv()
+
 # --- Lifespan (Startup/Shutdown) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Initialize DB and load papers
-    print("📚 Initializing database...")
-    database.init_db()
+    try:
+        # 1. Initialize DB and load papers
+        print("\n[1/4] Initializing database...")
+        database.init_db()
+        
+        # 2. Load Papers Data
+        print("[2/4] Loading papers from database...")
+        papers = database.get_all_papers()
+        if not papers:
+            raise RuntimeError("No papers found in the database. Please ensure the CSV file is properly loaded.")
+        print(f" Loaded {len(papers)} papers")
+    except Exception as e:
+        print(f" Error during database initialization: {str(e)}")
+        raise
     
-    # 2. Load Papers Data
-    print("📖 Loading papers from database...")
-    papers = database.get_all_papers()
-    if not papers:
-        raise RuntimeError("No papers found in the database. Please ensure the CSV file is properly loaded.")
-    print(f"✅ Loaded {len(papers)} papers")
-    
-    # 3. Initialize AI (Loads Model + Graph)
-    print("🚀 Starting AI Recommender System...")
-    app.state.recommender_system = RobustRecommender(papers)
-    print("✨ Recommender system ready!")
+    try:
+        # 3. Initialize AI (Loads Model + Graph)
+        print("[3/4] Starting AI Recommender System...")
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            print("  QDRANT_URL or QDRANT_API_KEY not found in .env file. Using local Qdrant instance.")
+        
+        print("   - Initializing Qdrant client...")
+        print(f"   - Qdrant URL: {qdrant_url if qdrant_url else 'localhost:6333'}")
+        
+        print("   - Loading sentence transformer model...")
+        app.state.recommender_system = RobustRecommender(
+            papers,
+            qdrant_url=qdrant_url,
+            qdrant_api_key=qdrant_api_key
+        )
+        print(" Recommender system ready!")
+    except Exception as e:
+        print(f" Error initializing recommender system: {str(e)}")
+        raise
     
     yield
     
     # Shutdown: Final Save
-    print("\n🛑 Shutting down, saving graph state...")
-    app.state.recommender_system.save_to_disk()
+    print("\n Shutting down...")
 
 # Initialize FastAPI app
 app = FastAPI(

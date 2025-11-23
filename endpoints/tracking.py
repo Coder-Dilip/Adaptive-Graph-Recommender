@@ -63,11 +63,8 @@ async def track_paper_interaction(
         # This is the critical section that needs thread safety
         recommender_system.process_user_click(
             query=payload.query or "",
-            clicked_item=payload.paper_id
+            clicked_item_id=payload.paper_id
         )
-        
-        # 3. Schedule background save (non-blocking)
-        background_tasks.add_task(recommender_system.save_to_disk)
         
         return {
             "status": "accepted",
